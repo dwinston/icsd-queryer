@@ -4,12 +4,14 @@
 
 A python module to query data from the ICSD using a [Selenium WebDriver](http://selenium-python.readthedocs.io/).
 
-Requires ChromeDriver for Selenium. On a Mac,
+Requires Chromium and ChromeDriver. 
+On a Mac,
 
 ```
 brew tap homebrew/cask
 brew cask install chromedriver
 ```
+
 Tested on ChromeDriver 2.29.
 Compatible with ICSD Version 4.2.0 (build 20190513-1424) - Data Release 2019.1
 
@@ -35,15 +37,19 @@ One of the tests randomly picks up expected files and compared them with newly o
 
 ### New keys in `meta_data.json`
 
-- ICSD_version  
+- ICSD_version
 
 The version of ICSD during the crawling
+
+- queryer_version
+
+The version of ICSD-queryer
 
 - doi
 
 DOI for the original literature
 
-- abstract  
+- abstract
 
 Abstract of the original literature
 
@@ -68,4 +74,4 @@ Following keys can have different values compared to the previous crawling.
 - PDF_number  # because of a bug
 - reference_2  # current ICSD seems to abolish multiple references 
 - reference_3  
-- R_value  # if unavailable, previous version returns `""`, while this version returns `None`.
+- R_value  # if unavailable, previous version returns `""`, while this version returns `None`.A

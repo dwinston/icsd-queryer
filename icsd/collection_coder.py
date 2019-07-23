@@ -12,14 +12,12 @@ from tqdm import tqdm
 class CollectionCoder():
     def __init__(self, first_code, last_code):
         self.previous_code = 0
-        # last_code = first_code + n_codes - 1
         self.code_range = "{0}-{1}".format(first_code, last_code)
         self.combined_csv_path = "combined/comb_{}.csv".format(self.code_range)
 
     def init_driver(self):
         self.q = queryer.Queryer(structure_source="A")
         self.q.select_structure_source()
-        # self.q.driver.find_element_by_link_text("DB Info").click()
         textbox = self.q.driver.find_element_by_id(
             "content_form:uiCodeCollection:input:input")
         textbox.send_keys(self.code_range)
@@ -32,14 +30,7 @@ class CollectionCoder():
 
         select = Select(self.q.driver.find_element_by_id(
             "display_form:listViewTable:j_id12"))
-        # select.select_by_visible_text('10')
         select.select_by_value('50')
-
-        # self.q._wait_until_dialogue_disappears()
-        # self.q.wait_for_ajax()
-        # self.q._wait_until_dialogue_disappears()
-
-        # class ui-paginator-current
 
         n_hits = self.q.hits
         n_pages = math.ceil(n_hits / 50)
@@ -63,8 +54,6 @@ class CollectionCoder():
                 ec.presence_of_element_located((
                     By.CSS_SELECTOR, ".ui-icon-seek-next"
                 )))
-            # element.click()
-            # self._save_csv(page, n_pages, self.code_range)
             _df = self._get_df()
             filename = "each/{0}-p{1}outof{2}ps.csv".format(
                 self.code_range, page, n_pages)
@@ -73,15 +62,12 @@ class CollectionCoder():
             df_list.append(_df)
 
             self.q.driver.execute_script("arguments[0].click();", element)
-            # self.q.driver.find_element_by_css_selector(".ui-icon-seek-next").click()
             self.q._wait_until_dialogue_disappears()
             self.q.wait_for_ajax()
 
         combined_df = pd.concat(df_list)
 
         combined_df.to_csv(self.combined_csv_path)
-        # self.q.driver.close()
-
 
     def _get_df(self):
         _df = self._get_current_df()
@@ -101,7 +87,6 @@ class CollectionCoder():
 
     def quit(self):
         self.q.quit()
-    # def _save_csv(self, page, n_pages, self.code_range):
 
 
 def main():
@@ -114,7 +99,6 @@ def main():
         except queryer.QueryerError:
             with open(cc.combined_csv_path, "w") as f:
                 f.write("")
-
 
             print("No entry found in this step")
             cc.quit()

@@ -8,18 +8,16 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import re
 import pkg_resources
-
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from tags import ICSD_QUERY_TAGS, ICSD_PARSE_TAGS
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.common.by import By
-
 from selenium.webdriver.chrome.options import Options
 
 
-pd.options.display.max_colwidth = 1000
+pd.options.display.max_colwidth = 100000
 
 
 class QueryerError(Exception):
@@ -83,6 +81,8 @@ class Queryer(object):
         self._url = None
         self.url = url
 
+        self.skipcif = True
+
         self._query = None
         self.query = query
         sys.stdout.write('Initializing a WebDriver...\n')
@@ -108,7 +108,7 @@ class Queryer(object):
         self.init_interval()
 
     def init_interval(self):
-        self.interval = 0  # sec
+        self.interval = 1  # sec
 
     @property
     def url(self):
@@ -158,7 +158,6 @@ class Queryer(object):
             self._structure_source = structure_source.upper()[0]
 
     def enable_download_in_headless_chrome(self, browser, download_dir):
-        # print("DL LINK: {}".format(download_dir))
         if not os.path.exists(download_dir):
             os.makedirs(download_dir)
 
@@ -168,7 +167,6 @@ class Queryer(object):
         params = {'cmd': 'Page.setDownloadBehavior', 'params': {
             'behavior': 'allow', 'downloadPath': download_dir}}
         browser.execute("send_command", params)
-        # return(browser)
 
     def _initialize_driver(self):
         browser_data_dir = os.path.join(os.getcwd(), 'browser_data')
@@ -232,11 +230,9 @@ class Queryer(object):
 
         return(webdriver.Chrome(options=_options))
 
-        # return()
-
     def _check_basic_search(self):
         """
-        Use By.ID to locate the Search Panel header element; if 'Basic Search'
+        Locate the Search Panel header element; if 'Basic Search'
         is not in the element text, raise Error.
         """
         header_id = 'content_form:mainSearchPanel_header'
@@ -271,7 +267,6 @@ class Queryer(object):
             number_tag = tag_dict.get(self.structure_source)
             xpath = "//table/tbody/tr/td/label["\
                 "text()[contains(., 'Theoretical structures')]]"
-            # radio_label = self.driver.find_element_by_xpath(xpath)
             radio_label = WebDriverWait(self.driver, 20).until(
                 ec.element_to_be_clickable((By.XPATH, xpath)))
             radio_label.click()
@@ -281,7 +276,6 @@ class Queryer(object):
             number_tag = tag_dict.get(self.structure_source)
             xpath = "//table/tbody/tr/td/label["\
                 "text()[contains(., 'Experim. metal-organic str.')]]"
-            # radio_label = self.driver.find_element_by_xpath(xpath)
             radio_label = WebDriverWait(self.driver, 20).until(
                 ec.element_to_be_clickable((By.XPATH, xpath)))
             radio_label.click()
@@ -299,7 +293,7 @@ class Queryer(object):
 
     def post_query_to_form(self):
         """
-        Use By.ID to locate elements in the query (using IDs stored in
+        Locate elements in the query (using IDs stored in
         `tags.ICSD_QUERY_TAGS`), POST keys to the form in the URL `self.url`,
         and run the query.
         (Also check if the 'List View' page has been loaded successfully.)
@@ -321,7 +315,7 @@ class Queryer(object):
 
     def _run_query(self):
         """
-        Use By.NAME to locate the 'Run Query' button and click it.
+        Locate the 'Run Query' button and click it.
         """
         time.sleep(3)
         self._wait_until_dialogue_disappears()
@@ -334,7 +328,7 @@ class Queryer(object):
 
     def _check_list_view(self):
         """
-        Use id to locate the first 'display_main' element, raise Error if
+        Locate the first 'display_main' element, raise Error if
         'List View' is not in the element text.
         Parse element text to get number of hits for the current query
         (last item when text is split), assign to `self.hits`.
@@ -359,7 +353,7 @@ class Queryer(object):
 
     def _click_select_all(self):
         """
-        Use By.ID to locate the 'Select All' ('LVSelect') button, and click it.
+        Locate the 'Select All' button, and click it.
         """
         self.wait_for_ajax()
 
@@ -385,7 +379,7 @@ class Queryer(object):
 
     def _click_show_detailed_view(self):
         """
-        Use By.ID to locate the 'Show Detailed View' ('LVDetailed') button, and
+        Locate the 'Show Detailed View' button, and
         click it.
         """
         time.sleep(3)
@@ -416,7 +410,7 @@ class Queryer(object):
 
     def _check_detailed_view(self):
         """
-        Use By.ID to locate all 'title' elements. If none of the title texts
+        Locate all 'title' elements. If none of the title texts
         have 'Detailed View', raise an Error.
         """
         try:
@@ -436,7 +430,7 @@ class Queryer(object):
 
     def _expand_all(self):
         """
-        Use By.CSS_SELECTOR to locate the 'Expand All' ('a#ExpandAll.no_print')
+        Locate the 'Expand All' ('a#ExpandAll.no_print')
         button, and click it.
         """
         element = WebDriverWait(self.driver, 60).until(
@@ -449,7 +443,7 @@ class Queryer(object):
     def _get_number_of_entries_loaded(self):
         """
         Load the number of entries from details.xhtml.
-        Use By.CLASS_NAME to locate 'display_main' elements, split the element text
+        Locate 'display_main' elements, split the element text
         with 'Detailed View' in it and return(the last item in )the list.
         """
         for i in range(10):
@@ -505,25 +499,26 @@ class Queryer(object):
                 screenshot_file = os.path.join(coll_code, 'screenshot.png')
                 self.save_screenshot(fname=screenshot_file)
 
-            self.enable_download_in_headless_chrome(
-                self.driver, self.download_dir)
-            # get the CIF file
-            self.export_CIF()
-            # uncomment the next few lines for automatic copying of CIF files
-            # into the correct folders
-            # wait for the file download to be completed
-            CIF_name = 'ICSD_CollCode{}.cif'.format(coll_code)
-            CIF_source_loc = os.path.join(self.download_dir, CIF_name)
+            if self.skipcif == False:
+                self.enable_download_in_headless_chrome(
+                    self.driver, self.download_dir)
+                # get the CIF file
+                self.export_CIF()
+                # uncomment the next few lines for automatic copying of CIF files
+                # into the correct folders
+                # wait for the file download to be completed
+                CIF_name = 'ICSD_CollCode{}.cif'.format(coll_code)
+                CIF_source_loc = os.path.join(self.download_dir, CIF_name)
 
-            for _ in range(1000):
-                if os.path.exists(CIF_source_loc):
-                    time.sleep(0.1)
-                    break
-                else:
-                    time.sleep(0.1)
-            # move it into the directory of the current entry
-            CIF_dest_loc = os.path.join(coll_code, '{}.cif'.format(coll_code))
-            shutil.move(CIF_source_loc, CIF_dest_loc)
+                for _ in range(1000):
+                    if os.path.exists(CIF_source_loc):
+                        time.sleep(0.1)
+                        break
+                    else:
+                        time.sleep(0.1)
+                # move it into the directory of the current entry
+                CIF_dest_loc = os.path.join(coll_code, '{}.cif'.format(coll_code))
+                shutil.move(CIF_source_loc, CIF_dest_loc)
 
             sys.stdout.write('[{}/{}]: '.format(i+1, self.hits))
             sys.stdout.write('Data exported into ')
@@ -550,7 +545,7 @@ class Queryer(object):
 
     def _go_to_next_entry(self):
         """
-        Use By.CLASS_NAME to locate the 'Next' button ('button_vcr_next'), and
+        Locate the 'Next' button ('button_vcr_next'), and
         click it.
         """
         self.wait_for_ajax()
@@ -597,7 +592,8 @@ class Queryer(object):
 
         parsed_data['ICSD_version'] = self._get_icsd_ver()
         parsed_data['theoretical_calculation'] = "Structure calculated theoretically" in parsed_data['comments']
-        parsed_data['crawler_version'] = pkg_resources.get_distribution("icsd").version
+        parsed_data['crawler_version'] = pkg_resources.get_distribution(
+            "icsd").version
 
         return(parsed_data)
 
@@ -611,7 +607,7 @@ class Queryer(object):
 
     def get_collection_code(self):
         """
-        Use By.CLASS_NAME to locate 'title' elements, parse the ICSD Collection
+        Locate 'title' elements, parse the ICSD Collection
         Code from the element text and raise Error if unsuccessful.
 
         Return: (integer) ICSD Collection Code
@@ -628,22 +624,10 @@ class Queryer(object):
 
             for title in titles:
                 if 'Summary' in title.text:
-                    # try:
                     if len(title.text.split()) > 21:
                         code = title.text.split()[21]
                         if code.isdigit():
                             return(int(code))
-                        # break
-                    # except Exception as e:
-
-                        # error_message = 'Failed to parse the ICSD Collection Code. Original error:\n' + \
-                        #     str(e)
-                        # print(error_message)
-                        # print("title text:")
-                        # print(title.text)
-                        # raise QueryerError(error_message)
-
-                # return(collection_code)
 
             time.sleep(0.1)
 
@@ -662,11 +646,29 @@ class Queryer(object):
 
         return(str(table))
 
+    def get_html_table_dynamic(self, keywords):
+
+        for keyword in keywords:
+
+            keyword = "</span>{}</div>".format(keyword)
+            if not self.page_obatained:
+                self.wait_for_ajax()
+                self.soup = BeautifulSoup(self.driver.page_source, 'lxml')
+                self.page_obatained = True
+
+            source = self.driver.page_source
+
+            if keyword in source:
+                table = source.split(keyword)[1]
+                return(table)
+
+        raise QueryerError
+
     # panel: "Summary"
 
     def get_PDF_number(self):
         """
-        Use By.XPATH to locate a 'td' node with the tag name (stored in
+        Locate a 'td' node with the tag name (stored in
         `tags.ICSD_PARSE_TAGS`), parse the node text.
 
         Return: (string) PDF-number if available, empty string otherwise
@@ -682,7 +684,7 @@ class Queryer(object):
 
     def get_authors(self):
         """
-        Use By.XPATH to locate a 'td' node with the tag name (stored in
+        Locate a 'td' node with the tag name (stored in
         `tags.ICSD_PARSE_TAGS`), parse the node text.
 
         Return: (string) Authors if available, empty string otherwise
@@ -693,7 +695,7 @@ class Queryer(object):
 
     def get_publication_title(self):
         """
-        Use By.ID to locate 'Title of Article' ['textfield13'], parse the
+        Locate 'Title of Article' ['textfield13'], parse the
         element text.
 
         Return: (string) Publication title if available, empty string otherwise
@@ -713,7 +715,7 @@ class Queryer(object):
 
     def get_reference(self):
         """
-        Use By.ID to locate 'Reference' for the publication ['textfield12'],
+        Locate 'Reference' for the publication ['textfield12'],
         parse the element text.
 
         Return: (string) Bibliographic reference if available, empty string
@@ -736,13 +738,15 @@ class Queryer(object):
     # panel: "Summary"
     def _get_summary_panel(self):
         table = self.get_html_table(idx=0)
+        # This cannot be replaced with dynamic one
         df = pd.read_html(table)[0]
         df = self._parse_two_column_table(df)
         return(df)
 
     # panel: "Chemistry"
     def _get_chemistry_panel(self):
-        table = self.get_html_table(idx=2)
+        # table = self.get_html_table(idx=2)
+        table = self.get_html_table_dynamic(["Chemistry"])
         df = pd.read_html(table)[0]
         df = self._parse_two_column_table(df)
         return(df)
@@ -756,7 +760,7 @@ class Queryer(object):
 
     def get_chemical_formula(self):
         """
-        Use By.ID to locate 'Sum Form' ['textfieldChem1'], parse the elemnent
+        Locate 'Sum Form' ['textfieldChem1'], parse the elemnent
         text.
 
         Return: (string) Chemical formula if available, empty string otherwise
@@ -767,7 +771,7 @@ class Queryer(object):
 
     def get_structural_formula(self):
         """
-        Use By.ID to locate 'Struct. Form.' ['textfieldChem3'], parse the
+        Locate 'Struct. Form.' ['textfieldChem3'], parse the
         element text.
 
         Return: (string) Structural formula if available, empty string otherwise
@@ -779,7 +783,7 @@ class Queryer(object):
 
     def get_AB_formula(self):
         """
-        Use By.ID to locate 'AB Formula' ['textfieldChem6'], parse the element
+        Locate 'AB Formula' ['textfieldChem6'], parse the element
         text.
 
         Return: (string) AB formula if available, empty string otherwise
@@ -788,10 +792,31 @@ class Queryer(object):
         formula = _df[_df.Name == 'AB formula'].Value.to_string(index=False)
         return(formula.strip())
 
+    def parse_cell_parameters(self, raw_text):
+        raw_text = raw_text.strip()
+        raw_text = raw_text.replace(" (", "(")
+
+        a, b, c, alpha, beta, gamma = [float(e.split('(')[0].strip('.')) for e
+                                       in raw_text.split()]
+
+        assert a > 0
+        assert b > 0
+        assert c > 0
+        assert alpha > 0
+        assert beta > 0
+        assert gamma > 0
+        assert alpha < 180
+        assert beta < 180
+        assert gamma < 180
+
+        cell_parameters = {'a': a, 'b': b, 'c': c, 'alpha': alpha, 'beta': beta,
+                           'gamma': gamma}
+        return(cell_parameters)
+
     # panel: "Published Crystal Structure Data"
     def get_cell_parameters(self):
         """
-        Use By.ID to locate 'Cell Parameters' ['textfieldPub1'] textfield, get
+        Locate 'Cell Parameters' ['textfieldPub1'] textfield, get
         its 'value' attribute, strip uncertainties from the quantities, and
         construct a cell parameters dictionary.
 
@@ -802,26 +827,12 @@ class Queryer(object):
         _df = self._get_published_crystal_structure_data_panel()
         raw_text = _df[_df.Name ==
                        'Cell parameter'].Value.to_string(index=False)
-        raw_text = raw_text.strip()
-
-        a, b, c, alpha, beta, gamma = [float(e.split('(')[0].strip('.')) for e
-                                       in raw_text.split()]
-        cell_parameters = {'a': a, 'b': b, 'c': c, 'alpha': alpha, 'beta': beta,
-                           'gamma': gamma}
-        assert a > 0
-        assert b > 0
-        assert c > 0
-        assert alpha > 0
-        assert beta > 0
-        assert gamma > 0
-        assert alpha < 180
-        assert beta < 180
-        assert gamma < 180
+        cell_parameters = self.parse_cell_parameters(raw_text)
         return(cell_parameters)
 
     def get_volume(self):
         """
-        Use By.ID to locate 'Volume' ['textfieldPub2'], parse its 'value'
+        Locate 'Volume' ['textfieldPub2'], parse its 'value'
         attribute.
 
         Return: (float) Volume in cubic Angstrom
@@ -836,7 +847,7 @@ class Queryer(object):
 
     def get_space_group(self):
         """
-        Use By.ID to locate 'Space Group' ['textfieldPub5'], parse its 'value'
+        Locate 'Space Group' ['textfieldPub5'], parse its 'value'
         attribute.
 
         Return: (string) Space group if available, empty string otherwise
@@ -849,14 +860,14 @@ class Queryer(object):
         return(raw_text.strip())
 
     def _get_published_crystal_structure_data_panel(self):
-        table = self.get_html_table(idx=3)
+        table = self.get_html_table_dynamic(["Published Crystal Structure Data"])
         df = pd.read_html(table)[0]
         df = self._parse_two_column_table(df)
         return(df)
 
     def get_crystal_system(self):
         """
-        Use By.ID to locate 'Crystal System' ['textfieldPub8'], parse its
+        Locate 'Crystal System' ['textfieldPub8'], parse its
         'value' attribute.
 
         Return: (string) Crystal system if available, empty string otherwise
@@ -873,7 +884,7 @@ class Queryer(object):
 
     def get_wyckoff_sequence(self):
         """
-        Use By.ID to locate 'Wyckoff Sequence' ['textfieldPub11'], parse its
+        Locate 'Wyckoff Sequence' ['textfieldPub11'], parse its
         'value' attribute.
 
         Return: (string) Wyckoff sequence if available, empty string otherwise
@@ -885,7 +896,7 @@ class Queryer(object):
 
     def get_formula_units_per_cell(self):
         """
-        Use By.ID to locate 'Formula Units per Cell' ['textfieldPub3'], parse
+        Locate 'Formula Units per Cell' ['textfieldPub3'], parse
         its 'value' attribute.
         Return: (integer) Formula units per unit cell
         """
@@ -898,7 +909,7 @@ class Queryer(object):
         details.xhtml > Details
         > Published Crystal Structure Data > Pearson symbol
 
-        Use By.ID to locate 'Pearson Symbol' ['textfieldPub6'], parse its
+        Locate 'Pearson Symbol' ['textfieldPub6'], parse its
         'value' attribute.
 
         Return: (string) Pearson symbol if available, empty string otherwise
@@ -914,7 +925,7 @@ class Queryer(object):
         details.xhtml > Details
         > Published Crystal Structure Data > Crystal class
 
-        Use By.ID to locate 'Crystal Class' ['textfieldPub9'], parse its 'value'
+        Locate 'Crystal Class' ['textfieldPub9'], parse its 'value'
         attribute.
 
         Return: (string) Crystal class if available, empty string otherwise
@@ -930,7 +941,7 @@ class Queryer(object):
 
     def get_structural_prototype(self):
         """
-        Use By.ID to locate 'Structure Type' ['textfieldPub12'], parse its
+        Locate 'Structure Type' ['textfieldPub12'], parse its
         'value' attribute.
 
         Return: (string) Structure type if available, empty string otherwise
@@ -948,7 +959,7 @@ class Queryer(object):
     # panel: "Bibliography"
     def _get_references(self, n):
         """
-        Use By.XPATH to locate 'td' nodes with the tag name (stored in
+        Locate 'td' nodes with the tag name (stored in
         `tags.ICSD_PARSE_TAGS`), parse the text for each node.
         ['Detailed View' page has text fields for 3 references]
 
@@ -1010,7 +1021,11 @@ class Queryer(object):
         return(r)
 
     def _parse_two_column_table(self, df):
+        if df.shape[1] != 5:
+            print(df)
+
         assert df.shape[1] == 5
+
         df1 = df.loc[:, 0:1]
         df2 = df.loc[:, 3:5]
 
@@ -1021,7 +1036,8 @@ class Queryer(object):
         return(df)
 
     def _get_additional_info(self, key="Warnings"):
-        table = self.get_html_table(idx=18)
+        # table = self.get_html_table(idx=18)
+        table = self.get_html_table_dynamic(["Additional information"])
 
         if '<table class="outputcontentpanel"></table>' == table:
             return([])
@@ -1036,7 +1052,7 @@ class Queryer(object):
 
     def get_warnings(self):
         """
-        Use By.ID to locate 'Warnings & Comments' ('ir_a_8_81a3e') block, then
+        Locate 'Warnings & Comments' ('ir_a_8_81a3e') block, then
         use By.XPATH to locate rows in the 'Warnings' table
         ('.//table/tbody/tr'), add text in each row, if any, to a list.
 
@@ -1046,7 +1062,7 @@ class Queryer(object):
 
     def get_comments(self):
         """
-        Use By.ID to locate 'Warnings & Comments' ('ir_a_8_81a3e') block, then
+        Locate 'Warnings & Comments' ('ir_a_8_81a3e') block, then
         use By.XPATH to locate the individual 'Comments' divs, add text in each
         div, if any, to a list.
 
@@ -1061,7 +1077,7 @@ class Queryer(object):
         details.xhtml > Details
         > Experimental information > Temperature
 
-        Use By.XPATH to locate the 'input' nodes associated with the div name
+        Locate the 'input' nodes associated with the div name
         (stored in `tag.ICSD_PARSE_TAGS`), and get the 'value' attribute of the
         first node.
 
@@ -1077,7 +1093,7 @@ class Queryer(object):
         details.xhtml > Details
         > Experimental information > Pressure
 
-        Use By.XPATH to locate the 'input' nodes associated with the div name
+        Locate the 'input' nodes associated with the div name
         (stored in `tag.ICSD_PARSE_TAGS`), and get the 'value' attribute of the
         second node.
 
@@ -1093,7 +1109,7 @@ class Queryer(object):
         details.xhtml > Details
         > Experimental information > R-value
 
-        Use By.XPATH to locate the 'input' node with attribute 'text',
+        Locate the 'input' node with attribute 'text',
         associated with 'td' node with the tag name (stored in
         `tags.ICSD_PARSE_TAGS`), get its 'value' attribute.
 
@@ -1104,12 +1120,16 @@ class Queryer(object):
 
         if raw_text == "Series([], )":
             return(None)
-        return(float(raw_text.strip()))
+
+        raw_text = raw_text.strip()
+        raw_text = raw_text.split("(")[0]
+
+        return(float(raw_text))
 
     # checkboxes
     def _is_checkbox_enabled(self, tag_key):
         """
-        Use By.XPATH to locate the 'input' node of type 'checkbox' associated
+        Locate the 'input' node of type 'checkbox' associated
         with a 'td' node with the tag name (stored in `tags.ICSD_PARSE_TAGS`),
         and try to get its 'checked' attribute.
 
@@ -1173,7 +1193,7 @@ class Queryer(object):
         return('Synchrotron' == self._get_radiation_type())
 
     def _get_bibliography_panel(self):
-        table = self.get_html_table(idx=16)
+        table = self.get_html_table_dynamic(["Bibliography"])
         df = pd.read_html(table)[0]
         df = self._parse_two_column_table(df)
         return(df)
@@ -1188,7 +1208,7 @@ class Queryer(object):
         return(abstract.to_string(index=False))
 
     def _get_experimental_information_panel(self):
-        table = self.get_html_table(idx=17)
+        table = self.get_html_table_dynamic(['Experimental information', 'Theoretical information'])
         df = pd.read_html(table)[0]
         df = self._parse_two_column_table(df)
         return(df)
@@ -1367,14 +1387,15 @@ class Queryer(object):
         """
         Is the 'Structure Prototype' checkbox enabled?
         """
-        table = self.get_html_table(idx=7)
+        # table = self.get_html_table(idx=7)
+        table = self.get_html_table_dynamic(['Standardized Crystal Structure Data'])
         df = pd.read_html(table)[0]
         df = self._parse_two_column_table(df)
         return("Transformation info" in df.columns.values)
 
     def export_CIF(self, base_filename='ICSD_Coll_Code'):
         """
-        Use By.ID to locate text field for base filename for CIFs
+        Locate text field for base filename for CIFs
         ('fileNameForExportToCif'), POST `base_filename` to it, and then use
         By.ID to locate 'Export to CIF File' button ('aExportCifFile'), and
         click it.

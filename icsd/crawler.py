@@ -3,16 +3,16 @@ import pandas as pd
 import os
 import math
 from icsd.all_entries import AllEntries
-# from logging import getLogger
 import logging
 import time
 
 
 class Crawler(object):
     def __init__(self):
-        # logging = getLogger("Log")
-        logging.basicConfig(filename = "selenium.log",  level = logging.INFO,
-                               format='[%(asctime)s] %(module)s.%(funcName)s %(levelname)s -> %(message)s')
+        self.max_dl = 100
+        self.skipcif = False
+        logging.basicConfig(filename="selenium.log",  level=logging.INFO,
+                            format='[%(asctime)s] %(module)s.%(funcName)s %(levelname)s -> %(message)s')
 
     def get_code_range(self):
         def get_within_value(start, end):
@@ -23,7 +23,10 @@ class Crawler(object):
             return(-1)
 
         start = self.not_yet_crawled[0]
-        end = self.all_codes[self.all_codes.index(start) + 99]  # 100 is the maximum of DL
+        end = self.all_codes[self.all_codes.index(
+            start) + self.max_dl-1]  # 100 is the maximum of DL
+
+        print(start, end)
 
         within_val = get_within_value(start, end)
 
@@ -46,7 +49,8 @@ class Crawler(object):
 
         assert(cdf["Coll. Code"].duplicated() == True).sum() == 0
 
-        logging.info("{} structures are in Collection Code list".format(len(cdf)))
+        logging.info(
+            "{} structures are in Collection Code list".format(len(cdf)))
 
         cdf = cdf.sort_values(by=["Coll. Code"])
 
@@ -64,8 +68,8 @@ class Crawler(object):
         logging.info("Awakening...")
         self.refresh()
 
-        sleep_time = 10
-        n_at_fail = 0
+        sleep_time = 1800
+        # n_at_fail = 0
 
         while len(self.not_yet_crawled) > 0:
             try:
@@ -73,6 +77,7 @@ class Crawler(object):
                 start, end = self.get_code_range()
 
                 ae = AllEntries(start, end)
+                ae.cc.q.skipcif = self.skipcif
                 ae.run()
 
             except Exception as e:
@@ -80,18 +85,21 @@ class Crawler(object):
                 print("Sleep {} seconds".format(sleep_time))
                 time.sleep(sleep_time)
                 sleep_time = sleep_time * 2
+                ae.cc.q.interval = ae.cc.q.interval * 2
 
-                ae.cc.q.interval += 1
+                self.max_dl = int(self.max_dl / 2)
 
                 self.refresh()
 
-                if n_at_fail - len(self.not_yet_crawled) > 1000:
-                    sleep_time = 10
-                    ae.cc.q.init_interval()
+                # if n_at_fail - len(self.not_yet_crawled) > 1000:
+                    # sleep_time = 1800
+                    # ae.cc.q.init_interval()
 
-                n_at_fail = len(self.not_yet_crawled)
+                # n_at_fail = len(self.not_yet_crawled)
 
 
-def main():
+def main(skipcif=False, maxdl=100):
     c = Crawler()
+    c.skipcif = skipcif
+    c.max_dl = maxdl
     c.run()

@@ -5,15 +5,17 @@ from sys import argv
 import sys
 from icsd.queryer import Queryer
 
+
 def command_scrape(args):
     if args.all:
-        scrape_all()
+        scrape_all(args.dlcif == False, args.maxdl)
 
     if args.code > 0:
         query = {
             "icsd_collection_code": args.code,
         }
         queryer = Queryer(query=query, structure_source=args.source)
+        queryer.skipcif = args.dlcif == False
         queryer.perform_icsd_query()
 
     if args.composition != "":
@@ -27,9 +29,9 @@ def command_scrape(args):
 def command_enumerate(args):
     enumerate_all()
 
+# def command_ls():
+#     pass
 
-def command_ls():
-    pass
 
 def main():
     parser = argparse.ArgumentParser()
@@ -39,9 +41,16 @@ def main():
     parser_scrape.add_argument('-A', '--all', action='store_true',
                                help='scrape everything using ICSD Collection Code')
     parser_scrape.add_argument(
-        '--composition', help='scrape everything using ICSD Collection Code', default="", type=str)
+        '--dlcif',
+        action='store_true',
+        help='Download CIF'
+    )
     parser_scrape.add_argument(
-        '--code', help='scape by ICSD Collection Code (e.g. 2000)', default=-1, type=int)
+        '--composition', help='e.g. Si:1 O:2', default="", type=str)
+    parser_scrape.add_argument(
+        '--maxdl', help='Max number of downloads', default=100, type=int)
+    parser_scrape.add_argument(
+        '--code', help='scrape by ICSD Collection Code (e.g. 2000)', default=-1, type=int)
     parser_scrape.add_argument(
         '--source', help='structure source (E (experiment), T (theory), or A (all, default))', default="A", type=str)
     parser_scrape.set_defaults(handler=command_scrape)
@@ -50,22 +59,20 @@ def main():
         'enumerate', help='make list of all ICSD codes')
     parser_enumerate.set_defaults(handler=command_enumerate)
 
-    parser_ls = subparsers.add_parser(
-        'ls', help='report already retrieved entries')
-    parser_ls.add_argument(
-        '--code', help='ICSD Collection Code (e.g. 2000, 2000-2050)', default="", type=str)
+    # parser_ls = subparsers.add_parser(
+    #     'ls', help='report already retrieved entries')
+    # parser_ls.add_argument(
+    # '--code', help='ICSD Collection Code (e.g. 2000, 2000-2050)', default="", type=str)
 
-    parser_ls = subparsers.add_parser(
-        'coverage', help='show coverge of your database')
-    parser_ls.add_argument(
-        '--code', help='ICSD Collection Code (e.g. 2000, 2000-2050)', default="", type=str)
-    parser_ls.set_defaults(handler=command_ls)
+    # parser_ls = subparsers.add_parser(
+    #     'coverage', help='show coverge of your database')
+    # parser_ls.add_argument(
+    # '--code', help='ICSD Collection Code (e.g. 2000, 2000-2050)', default="", type=str)
+    # parser_ls.set_defaults(handler=command_ls)
 
     args = parser.parse_args()
     print(args)
-    # self.arg_parser.parse_args(args=argv[1:])
-      #  args = self.arg_parser.parse_args(args=argv[1:])
-    #
+
     try:
         getattr(args, "handler")
     except AttributeError:
@@ -77,4 +84,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

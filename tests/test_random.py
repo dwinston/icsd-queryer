@@ -21,7 +21,8 @@ new_keys = [
     "temperature_factors_available",
     "ICSD_version",
     'abstract',
-    "data_quality"
+    "data_quality",
+    'crawler_version'
 ]
 conflicting_keys = [
     'PDF_number',  # queryer ver. 2017 returns 'R-value' by a bug
